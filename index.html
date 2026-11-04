@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Copa de su Majestad Kamil</title>
+    <!-- Firebase App (Base) y Realtime Database SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -95,8 +98,8 @@
             display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; margin-top: 6px;
         }
         .score-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .score-box label { font-size: 0.65rem; color: var(--text-muted); }
-        .score-box input { width: 45px; text-align: center; padding: 4px; }
+        .score-box label { font-size: 0.65rem; color: var(--accent); font-weight: bold; }
+        .score-box input { width: 45px; text-align: center; padding: 4px; border-color: var(--accent); }
         .team-info { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: bold; }
         .bye-badge { background: #334155; color: var(--accent); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; text-align: center; margin-top: 6px; }
         .admin-only { display: block; }
@@ -166,13 +169,13 @@
         
         <h3>Grupo A</h3>
         <table>
-            <thead><tr><th>Mánager</th><th>Pts</th><th>V</th><th>E</th><th>D</th><th>Goles</th><th>F-Pts</th></tr></thead>
+            <thead><tr><th>Mánager</th><th style="color:var(--accent);">Pts</th><th>V</th><th>E</th><th>D</th><th>Goles</th><th style="color:var(--accent);">F-Pts</th></tr></thead>
             <tbody id="table-A"></tbody>
         </table>
 
         <h3 style="margin-top:16px;">Grupo B</h3>
         <table>
-            <thead><tr><th>Mánager</th><th>Pts</th><th>V</th><th>E</th><th>D</th><th>Goles</th><th>F-Pts</th></tr></thead>
+            <thead><tr><th>Mánager</th><th style="color:var(--accent);">Pts</th><th>V</th><th>E</th><th>D</th><th>Goles</th><th style="color:var(--accent);">F-Pts</th></tr></thead>
             <tbody id="table-B"></tbody>
         </table>
     </div>
@@ -226,11 +229,25 @@
     </div>
 
     <script>
-        // Estructura de datos global
-        let db = JSON.parse(localStorage.getItem('kamil_cup_db')) || {
+        // Configuración e Inicialización de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPPpHewos16IT2faRaZuaC9xmlqR92z5c",
+            authDomain: "copa-kamil.firebaseapp.com",
+            projectId: "copa-kamil",
+            storageBucket: "copa-kamil.firebasestorage.app",
+            messagingSenderId: "145470904032",
+            appId: "1:145470904032:web:0654f2e7a73c5ea5d52285",
+            databaseURL: "https://copa-kamil-default-rtdb.firebaseio.com"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const dbRef = firebase.database().ref('torneo_kamil');
+
+        // Estructura de datos global por defecto
+        let db = {
             managers: [],
-            matches: {}, // { "A_1": [ { m1, m2, pts1, pts2, g1, g2 } ] }
-            pichichis: [], // [ { name, goals } ]
+            matches: {},
+            pichichis: [],
             playoffsUnlocked: false,
             playoffsData: {
                 semi1: { pts1: 0, pts2: 0 },
@@ -249,9 +266,24 @@
             badge.className = 'read-badge';
         }
 
-        function saveDB() {
-            localStorage.setItem('kamil_cup_db', JSON.stringify(db));
+        // Sincronización en tiempo real con Firebase
+        dbRef.on('value', (snapshot) => {
+            const serverData = snapshot.val();
+            if (serverData) {
+                db = serverData;
+            } else {
+                // Si la base de datos está vacía, subimos la estructura inicial
+                dbRef.set(db);
+            }
             renderAll();
+        });
+
+        function saveDB() {
+            dbRef.set(db).then(() => {
+                renderAll();
+            }).catch((error) => {
+                console.error("Error al guardar en Firebase:", error);
+            });
         }
 
         function copyReadOnlyLink() {
@@ -418,15 +450,15 @@
 
                             <div class="match-row-inputs" style="margin-top:8px;">
                                 <div class="score-box">
-                                    <label>Puntos / Goles</label>
+                                    <label>PTS / GOL</label>
                                     <div style="display:flex; gap:2px;">
                                         <input type="number" id="pts1_${idx}" value="${match.pts1 || 0}" ${isReadOnly ? 'disabled' : ''}>
                                         <input type="number" id="g1_${idx}" value="${match.g1 || 0}" style="border-color:var(--accent);" ${isReadOnly ? 'disabled' : ''}>
                                     </div>
                                 </div>
-                                <span style="font-size:0.7rem; color:var(--text-muted);">PTS | GOL</span>
+                                <span style="font-size:0.7rem; color:var(--accent);">PTS | GOL</span>
                                 <div class="score-box">
-                                    <label>Puntos / Goles</label>
+                                    <label>PTS / GOL</label>
                                     <div style="display:flex; gap:2px;">
                                         <input type="number" id="pts2_${idx}" value="${match.pts2 || 0}" ${isReadOnly ? 'disabled' : ''}>
                                         <input type="number" id="g2_${idx}" value="${match.g2 || 0}" style="border-color:var(--accent);" ${isReadOnly ? 'disabled' : ''}>
@@ -526,12 +558,12 @@
                                 <img src="${s.photo}" class="avatar" style="width:24px; height:24px;">
                                 ${s.name}
                             </td>
-                            <td><strong>${s.pts}</strong></td>
+                            <td><strong style="color:var(--accent);">${s.pts}</strong></td>
                             <td>${s.v}</td>
                             <td>${s.e}</td>
                             <td>${s.d}</td>
                             <td style="color:var(--accent);"><strong>${s.goals}</strong></td>
-                            <td>${s.fpts}</td>
+                            <td style="color:var(--accent);">${s.fpts}</td>
                         </tr>
                     `;
                 });
@@ -626,69 +658,3 @@
 
             lockNotice.style.display = 'none';
             container.style.display = 'block';
-            if (unlockBtn) unlockBtn.style.display = 'none';
-
-            const stats = calculateTables();
-            const groupA = Object.values(stats).filter(s => s.group === 'A').sort((a, b) => b.pts - a.pts || b.fpts - a.fpts);
-            const groupB = Object.values(stats).filter(s => s.group === 'B').sort((a, b) => b.pts - a.pts || b.fpts - a.fpts);
-
-            const a1 = groupA[0] || { name: '1º Gr.A', photo: 'https://via.placeholder.com/40' };
-            const a2 = groupA[1] || { name: '2º Gr.A', photo: 'https://via.placeholder.com/40' };
-            const b1 = groupB[0] || { name: '1º Gr.B', photo: 'https://via.placeholder.com/40' };
-            const b2 = groupB[1] || { name: '2º Gr.B', photo: 'https://via.placeholder.com/40' };
-
-            const semisDiv = document.getElementById('semis-container');
-            semisDiv.innerHTML = `
-                <div class="match-card">
-                    <div style="font-size:0.75rem; color:var(--accent); text-align:center; margin-bottom:4px;">Semifinal 1</div>
-                    <div class="match-row-inputs">
-                        <div class="team-info"><img src="${a1.photo}" class="avatar"><span>${a1.name}</span></div>
-                        <input type="number" id="semi1_p1" value="${db.playoffsData.semi1.pts1}" ${isReadOnly ? 'disabled' : ''}>
-                        <span>VS</span>
-                        <input type="number" id="semi1_p2" value="${db.playoffsData.semi1.pts2}" ${isReadOnly ? 'disabled' : ''}>
-                        <div class="team-info" style="justify-content:flex-end;"><span>${b2.name}</span><img src="${b2.photo}" class="avatar"></div>
-                    </div>
-                </div>
-                <div class="match-card">
-                    <div style="font-size:0.75rem; color:var(--accent); text-align:center; margin-bottom:4px;">Semifinal 2</div>
-                    <div class="match-row-inputs">
-                        <div class="team-info"><img src="${b1.photo}" class="avatar"><span>${b1.name}</span></div>
-                        <input type="number" id="semi2_p1" value="${db.playoffsData.semi2.pts1}" ${isReadOnly ? 'disabled' : ''}>
-                        <span>VS</span>
-                        <input type="number" id="semi2_p2" value="${db.playoffsData.semi2.pts2}" ${isReadOnly ? 'disabled' : ''}>
-                        <div class="team-info" style="justify-content:flex-end;"><span>${a2.name}</span><img src="${a2.photo}" class="avatar"></div>
-                    </div>
-                </div>
-            `;
-
-            // Ganadores de Semifinales
-            const w1 = db.playoffsData.semi1.pts1 > db.playoffsData.semi1.pts2 ? a1 : (db.playoffsData.semi1.pts2 > db.playoffsData.semi1.pts1 ? b2 : { name: 'Ganador Semi 1', photo: 'https://via.placeholder.com/40' });
-            const w2 = db.playoffsData.semi2.pts1 > db.playoffsData.semi2.pts2 ? b1 : (db.playoffsData.semi2.pts2 > db.playoffsData.semi2.pts1 ? a2 : { name: 'Ganador Semi 2', photo: 'https://via.placeholder.com/40' });
-
-            const finalDiv = document.getElementById('final-container');
-            finalDiv.innerHTML = `
-                <div class="match-card" style="border-color:var(--accent);">
-                    <div style="font-size:0.85rem; color:var(--accent); font-weight:bold; text-align:center; margin-bottom:6px;">👑 GRAN FINAL</div>
-                    <div class="match-row-inputs">
-                        <div class="team-info"><img src="${w1.photo}" class="avatar"><span>${w1.name}</span></div>
-                        <input type="number" id="final_p1" value="${db.playoffsData.final.pts1}" ${isReadOnly ? 'disabled' : ''}>
-                        <span>VS</span>
-                        <input type="number" id="final_p2" value="${db.playoffsData.final.pts2}" ${isReadOnly ? 'disabled' : ''}>
-                        <div class="team-info" style="justify-content:flex-end;"><span>${w2.name}</span><img src="${w2.photo}" class="avatar"></div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderAll() {
-            renderManagers();
-            renderMatches();
-            renderTables();
-            renderPichichis();
-            renderPlayoffs();
-        }
-
-        renderAll();
-    </script>
-</body>
-</html>
